@@ -174,4 +174,3 @@ The operation "Tuesday_Random_Final" was executed against a baseline Linux VM wi
 
 ### 4.3 Conclusion
 The baseline Linux logging configuration is insufficient for detecting modern adversary techniques. The removal of specialized agents like **Wazuh** created a total blind spot for exfiltration and persistence. To secure this environment, **Auditd** or a similar EDR solution must be implemented to capture command-level telemetry.
-````
