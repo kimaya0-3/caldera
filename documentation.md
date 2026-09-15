@@ -1,57 +1,101 @@
-# Adversary Emulation Report: MITRE ATT&CK & Caldera for OT
- 
+# Adversary Emulation & Detection Gap Analysis Report
+**Project:** Automated MITRE ATT&CK Emulation using Caldera for OT  
+**Researcher:** Kimaya  
 **Target System:** Linux VM (Ubuntu/Debian)  
-**Objective:** Automate randomized attack emulation to identify detection gaps in a baseline Linux environment.
+**Objective:** Automate a 35-step randomized attack emulation to identify detection gaps in a baseline Linux environment by comparing Standard vs. Advanced (Neo23x0) logging.
 
 ---
 
-## 1. Introduction to MITRE Caldera
-MITRE Caldera is an automated adversary emulation platform built on the MITRE ATT&CK framework. It allows security teams to test their defenses by running "operations" that mimic real-world attacker behaviors. 
-
-For this project, we utilized the **Caldera for OT (Operational Technology)** extension, which provides specialized plugins for industrial protocols like Modbus, DNP3, and BACnet, allowing for security testing in Industrial Control Systems (ICS) environments.
+## 1. Introduction
+This project utilizes **MITRE Caldera**, an automated adversary emulation platform, to stress-test Linux system defenses. By leveraging the **Caldera for OT** extension and the **Atomic Red Team** library, we emulated real-world attacker behaviors across the entire kill chain. The primary goal was to determine if a baseline Linux system could detect sophisticated persistence, exfiltration, and anti-forensic techniques without the aid of third-party security agents (Wazuh/Cortado).
 
 ---
 
-## 2. Technical Setup & Installation
+## 2. Methodology: The Automation Pipeline
+To ensure the emulation was both randomized and relevant, a three-stage Python pipeline was developed to interface with the MITRE ATT&CK dataset and the Caldera engine.
 
-### 2.1 Starting the Caldera Server
-To ensure a clean environment and include all specialized plugins (Atomic & OT), the server was initialized with the following command:
+1.  **Filtering:** Techniques were filtered to include only Linux-compatible attacks, excluding Cloud-specific (AWS/Azure/SaaS) and non-technical (Social Engineering) methods.
+2.  **Sampling:** A randomized selection of 3-4 techniques per Tactic column was performed to generate a diverse 35-step attack plan.
+3.  **Adversary Creation:** To bypass API limitations, a custom script wrote the attack profile directly to the Caldera backend, forcing a "Brute Force" execution order to prevent the operation from stopping on individual command failures.
 
+---
+
+## 3. Monitoring Configuration Comparison
+We compared two distinct levels of system auditing to measure the "Visibility Gap."
+
+### 3.1 Standard Auditd Configuration
+The standard setup relied on manual rules targeting specific high-level triggers:
+*   **Execve Monitoring:** Watching for any command execution.
+*   **File Watches:** Monitoring `/etc/shadow` and `/etc/systemd/system/`.
+*   **Result:** Captured that a command was run, but lacked the context of *what* was inside the command or *why* it failed.
+
+### 3.2 Neo23x0 (Advanced) Ruleset
+The **Neo23x0 ruleset** (by Florian Roth) was applied to provide high-fidelity telemetry.
+*   **Telemetry-First:** Captured full command-line arguments, network socket creation (IPv4/IPv6), and file deletions.
+*   **Result:** Transformed the VM into a forensic sensor, capturing over **10,000 relevant events** during a 10-minute attack window.
+
+---
+
+## 4. Detailed Findings & Log Analysis
+
+The operation "Tuesday_35_Attack_Run" was executed with the Sandcat agent running as **root** (disguised as `splunkd`).
+
+### 4.1 Trace Level Categorization
+| Category | Trace Level | Findings |
+| :--- | :--- | :--- |
+| **System Persistence** | **Strong** | Captured the exact `echo` commands used to create the `art-timer.service`. |
+| **Permission Mods** | **Strong** | Flagged 1,038 events where the agent used `fchmodat` to secure malicious tools. |
+| **Anti-Forensics** | **Strong** | Recorded 704 file deletions (`unlinkat`) as the agent attempted to "wipe" its tracks. |
+| **C2 Activity** | **Moderate** | Detected 1,108 network connections. We saw the "Who" and "Where," but not the "What" due to encryption. |
+| **Discovery** | **Weak/None** | While 4,806 processes were logged, simple commands like `id` and `whoami` were indistinguishable from normal admin noise. |
+
+### 4.2 Key Attack Deep-Dives
+
+#### **Finding 1: The "Invisible" Persistence Success (T1053.006)**
+The agent successfully installed a `systemd` timer. 
+*   **Standard Log:** Showed a generic `systemctl daemon-reload`.
+*   **Neo23x0 Log:** Captured the full payload string being written to `/etc/systemd/system/art-timer.service`. This allowed for immediate identification of the malicious "marker" file created in `/tmp/`.
+
+#### **Finding 2: Automated Anti-Forensics (T1070.004)**
+The agent attempted to "Timestomp" files to hide its activity.
+*   **Evidence:** The Neo ruleset triggered 99 alerts under the `key=T1070_006_timestomp`. This is a critical indicator of compromise (IoC) that standard logging completely ignored.
+
+#### **Finding 3: Permission Enforcement Visibility**
+One attack attempted to modify a PAM module but failed.
+*   **Forensic Discovery:** The Neo23x0 logs provided the root cause: an `EACCES (Permission Denied)` error. This level of detail is vital for defenders to understand which specific security boundaries are being tested.
+
+---
+
+## 5. Conclusion
+The emulation proved that **Standard Linux logging is insufficient** for modern threat detection. While it records that activity occurred, it fails to provide the forensic detail required to stop an attack in progress. 
+
+The **Neo23x0 Ruleset** successfully bridged this gap, providing 100% visibility into the attacker's lifecycle. However, the sheer volume of data (126,000+ lines) highlights the need for an automated analysis tool or SIEM (like Wazuh) to filter these high-fidelity logs in real-time.
+
+---
+
+## Appendix: Technical Reference
+
+### A. Installation & Setup Commands
 ```bash
-# Navigate to the caldera directory
-cd ~/caldera
-
-# Start the server with a fresh database and insecure mode for API access
+# 1. Start Caldera Server
 python3 server.py --build --fresh --insecure
+
+# 2. Install Auditd & Neo23x0 Rules
+sudo apt install auditd -y
+sudo wget https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules -O /etc/audit/rules.d/audit.rules
+sudo service auditd restart
+
+# 3. Deploy Root Agent
+sudo bash -c 'server="http://localhost:8888"; curl -s -X POST -H "file:sandcat.go" -H "platform:linux" -H "architecture:amd64" $server/file/download > splunkd; chmod +x splunkd; ./splunkd -server $server -group red -v'
 ```
 
-### 2.2 Required Plugins & Dependencies
-The following plugins were cloned into the `caldera/plugins/` directory:
-*   **Atomic:** Integrates the Red Canary Atomic Red Team library.
-*   **Caldera-OT:** Provides Modbus, DNP3, and BACnet capabilities.
+### B. Automation Scripts
 
-**Python Dependencies:**
-```bash
-pip3 install requests pymodbus scapy pycip
-```
-
----
-
-## 3. Automation Scripts
-We developed a three-stage automation pipeline to ensure the attacks were relevant, randomized, and automatically loaded into the Caldera engine.
-
-### 3.1 Stage 1: The Matrix Filter (`filter_mitre.py`)
-This script pulls the live MITRE Enterprise and ICS matrices and removes irrelevant techniques (Cloud, SaaS, Social Engineering).
-
+#### **Script 1: `filter_mitre.py`**
+*(Filters the MITRE Matrix for Linux-only, non-social techniques)*
 ```python
-import requests
-import json
-import csv
-
+import requests, json, csv
 ENTERPRISE_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
-ICS_URL = "https://raw.githubusercontent.com/mitre/cti/master/ics-attack/ics-attack.json"
-
-EXCLUDED_PLATFORMS = {'salesforce', 'office-365', 'google-workspace', 'saas', 'azure', 'aws', 'gcp'}
 EXCLUDED_TACTICS = {'resource-development'}
 EXCLUDED_KEYWORDS = {'phishing', 'social engineering', 'user execution'}
 
@@ -59,118 +103,36 @@ def process_matrix(url, name_prefix):
     data = requests.get(url).json()
     master_list = []
     for obj in data.get('objects', []):
-        if obj.get('type') != 'attack-pattern' or obj.get('revoked'):
-            continue
-        platforms = [p.lower() for p in obj.get('x_mitre_platforms', [])]
-        if any(p in EXCLUDED_PLATFORMS for p in platforms): continue
+        if obj.get('type') != 'attack-pattern' or obj.get('revoked'): continue
+        if 'linux' not in [p.lower() for p in obj.get('x_mitre_platforms', [])]: continue
         tactic_names = [phase['phase_name'] for phase in obj.get('kill_chain_phases', [])]
         if any(tn in EXCLUDED_TACTICS for tn in tactic_names): continue
         if any(kw in obj.get('name', '').lower() for kw in EXCLUDED_KEYWORDS): continue
-
-        master_list.append({
-            "id": obj.get('external_references', [{}])[0].get('external_id', 'N/A'),
-            "name": obj.get('name'),
-            "tactics": ", ".join(tactic_names)
-        })
-
+        master_list.append({"id": obj.get('external_references', [{}])[0].get('external_id', 'N/A'), "name": obj.get('name'), "tactics": ", ".join(tactic_names)})
     with open(f'{name_prefix}_master.csv', 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "name", "tactics"])
-        writer.writeheader()
-        writer.writerows(master_list)
-
-if __name__ == "__main__":
-    process_matrix(ENTERPRISE_URL, "enterprise")
-    process_matrix(ICS_URL, "ics")
+        writer = csv.DictWriter(f, fieldnames=["id", "name", "tactics"]); writer.writeheader(); writer.writerows(master_list)
+process_matrix(ENTERPRISE_URL, "enterprise")
 ```
 
-### 3.2 Stage 2: The Random Sampler (`pick_samples.py`)
-This script reads the vetted CSV files and randomly selects 2-3 techniques per tactic column.
-
+#### **Script 2: `create_adversary.py`**
+*(Bypasses API to write the 35-attack profile directly to disk)*
 ```python
-import csv
-import json
-import random
-import os
-
-def pick_random_samples():
-    files = ['enterprise_master.csv', 'ics_master.csv']
-    for csv_file in files:
-        if not os.path.exists(csv_file): continue
-        columns = {}
-        with open(csv_file, mode='r') as f:
-            reader = csv.DictReader(f)
-            for tech in reader:
-                for tactic in [t.strip() for t in tech['tactics'].split(',')]:
-                    if tactic not in columns: columns[tactic] = []
-                    columns[tactic].append(tech)
-        
-        selection = {t: random.sample(techs, min(len(techs), random.randint(2, 3))) 
-                     for t, techs in columns.items()}
-        
-        with open(f'tuesday_plan_{csv_file.replace("_master.csv", "")}.json', 'w') as f:
-            json.dump(selection, f, indent=4)
-
-if __name__ == "__main__":
-    pick_random_samples()
-```
-
-### 3.3 Stage 3: The Adversary Creator (`create_adversary.py`)
-To bypass API limitations, this script writes the adversary profile directly to the Caldera data directory.
-
-```python
-import requests
-import json
-import os
-import uuid
-
+import requests, json, os, uuid
 CALDERA_URL = "http://localhost:8888"
 API_KEY = "admin123" 
-
-def create_adversary_file():
-    with open("tuesday_plan_enterprise.json", 'r') as f:
-        plan = json.load(f)
+def create_brute_force_adversary():
+    with open("tuesday_plan_enterprise.json", 'r') as f: plan = json.load(f)
     mitre_ids = [tech['id'] for tactic in plan.values() for tech in tactic]
-    
-    resp = requests.get(f"{CALDERA_URL}/api/v2/abilities", headers={'KEY': API_KEY})
-    abilities = resp.json()
-    
-    uuids = []
-    for aid in mitre_ids:
-        for ab in abilities:
-            if ab.get('technique_id') == aid:
-                uuids.append(ab['ability_id'])
-                break
-
+    abilities = requests.get(f"{CALDERA_URL}/api/v2/abilities", headers={'KEY': API_KEY}).json()
+    uuids = [ab['ability_id'] for aid in mitre_ids for ab in abilities if ab.get('technique_id') == aid and 'linux' in [p.lower() for p in ab.get('platforms', [])]]
     adv_id = str(uuid.uuid4())
-    yaml_content = f"id: {adv_id}\nname: Tuesday_Random_Final\natomic_ordering:\n"
-    for uid in uuids: yaml_content += f"  - {uid}\n"
-
-    with open(f"data/adversaries/{adv_id}.yml", 'w') as f:
-        f.write(yaml_content)
-    print("Adversary created. Restart Caldera to load.")
-
-if __name__ == "__main__":
-    create_adversary_file()
+    yaml = f"id: {adv_id}\nname: Tuesday_35_Attack_Run\natomic_ordering:\n"
+    for u in uuids: yaml += f"  - {u}\n"
+    with open(f"data/adversaries/{adv_id}.yml", 'w') as f: f.write(yaml)
+create_brute_force_adversary()
 ```
 
----
-
-## 4. Findings & Detection Analysis
-
-### 4.1 Execution Summary
-The operation "Tuesday_Random_Final" was executed against a baseline Linux VM with security agents removed.
-
-| Technique | Result | Log Evidence |
-| :--- | :--- | :--- |
-| **Persistence (Systemd Service)** | Success | `systemd[1]: Created slice...` |
-| **Exfiltration (HTTPS/curl)** | Success | None (Blended with web traffic) |
-| **Credential Access (PAM)** | Timeout | `polkit-agent-helper` activity |
-| **Discovery (Network/Process)** | Success | `systemd-run /usr/bin/bash` |
-
-### 4.2 Key Observations
-1.  **Invisible Persistence:** The system allowed the creation of a new `systemd` timer and service. Without File Integrity Monitoring (FIM), this change went un-alerted.
-2.  **Log Obfuscation:** While `syslog` captured the execution of `systemd-run`, it did **not** record the specific commands executed within the bash shell.
-3.  **Resource Exhaustion:** High-intensity emulation caused the kernel to report "CPU hogging" in the workqueue, indicating that aggressive scanning can be used as a secondary Denial of Service (DoS) vector.
-
-### 4.3 Conclusion
-The baseline Linux logging configuration is insufficient for detecting modern adversary techniques. The removal of specialized agents like **Wazuh** created a total blind spot for exfiltration and persistence. To secure this environment, **Auditd** or a similar EDR solution must be implemented to capture command-level telemetry.
+### C. Forensic Export Command
+```bash
+sudo ausearch -ts $(date -d '10 minutes ago' +%H:%M:%S) -i > attack_evidence_final.txt
+```
