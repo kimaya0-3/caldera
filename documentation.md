@@ -1,8 +1,4 @@
 # Adversary Emulation & Detection Gap Analysis Report
-**Project:** Automated MITRE ATT&CK Emulation using Caldera for OT  
-**Researcher:** Kimaya  
-**Target System:** Linux VM (Ubuntu/Debian)  
-**Objective:** Automate a 35-step randomized attack emulation to identify detection gaps in a baseline Linux environment by comparing Standard vs. Advanced (Neo23x0) logging.
 
 ---
 
