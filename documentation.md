@@ -3,7 +3,7 @@
 ---
 
 ## 1. Introduction
-This project utilizes **MITRE Caldera**, an automated adversary emulation platform, to stress-test Linux system defenses. By leveraging the **Caldera for OT** extension and the **Atomic Red Team** library, we emulated real-world attacker behaviors across the entire kill chain. The primary goal was to determine if a baseline Linux system could detect sophisticated persistence, exfiltration, and anti-forensic techniques without the aid of third-party security agents (Wazuh/Cortado).
+This project utilizes **MITRE Caldera**, an automated adversary emulation platform, to stress-test Linux system defenses. By leveraging the **Caldera for OT** extension and the **Atomic Red Team** library, we emulated real-world attacker behaviors across the entire kill chain. The primary goal was to determine if a baseline Linux system could detect sophisticated persistence, exfiltration, and anti-forensic techniques without the aid of third-party security agents.
 
 ---
 
