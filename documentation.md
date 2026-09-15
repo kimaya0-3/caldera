@@ -34,7 +34,7 @@ The **Neo23x0 ruleset** (by Florian Roth) was applied to provide high-fidelity t
 
 ## 4. Detailed Findings & Log Analysis
 
-The operation "Tuesday_35_Attack_Run" was executed with the Sandcat agent running as **root** (disguised as `splunkd`).
+The operation was executed with the Sandcat agent running as **root** (disguised as `splunkd`).
 
 ### 4.1 Trace Level Categorization
 | Category | Trace Level | Findings |
