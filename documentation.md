@@ -127,8 +127,3 @@ def create_brute_force_adversary():
     with open(f"data/adversaries/{adv_id}.yml", 'w') as f: f.write(yaml)
 create_brute_force_adversary()
 ```
-
-### C. Forensic Export Command
-```bash
-sudo ausearch -ts $(date -d '10 minutes ago' +%H:%M:%S) -i > attack_evidence_final.txt
-```
