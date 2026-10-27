@@ -1,4 +1,4 @@
-# Technical Report: Cross-Platform Adversary Emulation and Telemetry Analysis
+# Caldera Analysis
 
 ## 1. Summary
 
