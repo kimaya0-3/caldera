@@ -41,9 +41,28 @@ The study compared default system logging against industry-standard hardened rul
 ---
 
 ## 4. Methodology
-The emulation phase involved a 35-step automated attack profile.
-*   **Technique Selection:** Techniques were filtered to prioritize endpoint-resident behaviors. Cloud-native and social engineering tactics were excluded to maintain focus on host-based telemetry validation.
-*   **Execution Logic:** A custom Python integration pushed the attack profile directly to the Caldera backend. A "Brute Force" execution model was employed to ensure the operation proceeded regardless of individual command failures, allowing for a complete telemetry set.
+The research followed a structured four-phase lifecycle to ensure the emulation was reproducible, randomized, and technically rigorous.
+
+### 4.1 Phase 1: Environment Preparation and Hardening
+The targets were first monitored in a "Baseline" state to establish a control group. Subsequently, hardened configurations were deployed:
+*   **Windows:** Implementation of the SwiftOnSecurity Sysmon configuration to enable granular monitoring of registry modifications (Event ID 13), DNS queries (ID 22), and WMI activity.
+*   **Linux:** Deployment of the Neo23x0 Auditd ruleset, expanding telemetry from basic process execution to a comprehensive suite of over 120 system calls, including file integrity and network socket creation.
+
+### 4.2 Phase 2: Technique Filtering and Selection
+To ensure the attack profile was relevant to endpoint defense, a custom Python utility (`filter_mitre.py`) was developed to interface with the MITRE ATT&CK Enterprise dataset.
+*   **Selection Criteria:** Techniques were filtered to include only those compatible with Windows and Linux platforms. 
+*   **Exclusions:** Cloud-native tactics (AWS/Azure), social engineering, and techniques requiring manual user interaction were excluded to maintain the integrity of the automated telemetry capture.
+*   **Sampling:** 35 techniques were randomly sampled across the kill chain (Execution, Persistence, Discovery, and Exfiltration) to create a diverse adversary profile.
+
+### 4.3 Phase 3: Adversary Profiling and C2 Integration
+Due to the complexity of the 35-step chain, a secondary script (`create_adversary.py`) was utilized to automate the creation of the "Tuesday_35_Attack_Run" profile within the Caldera backend.
+*   **Brute Force Execution:** The profile was configured with an "Atomic Ordering" model. This "Brute Force" approach ensured that the C2 server attempted every technique in the sequence, even if a preceding step failed or was blocked, ensuring a complete telemetry set for all 35 techniques.
+*   **Agent Obfuscation:** On the Linux target, the Sandcat agent was executed with root privileges and renamed to `splunkd` to evaluate the efficacy of process lineage and anti-forensic detection.
+
+### 4.4 Phase 4: Telemetry Extraction and Forensic Analysis
+Post-execution, telemetry was exported for cross-referencing against the Caldera operation logs.
+*   **Windows:** Logs were extracted from the `Applications and Services Logs/Microsoft/Windows/Sysmon/Operational` event channel.
+*   **Linux:** Forensic evidence was gathered using `ausearch` to query the Auditd logs, focusing on specific keys (e.g., `key=T1070_006_timestomp`) mapped to the emulated techniques.
 
 ---
 
