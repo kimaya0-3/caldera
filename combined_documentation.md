@@ -2,6 +2,8 @@
 
 ---
 
+## 1. Synopsis
+
 This research evaluates the detection capabilities of standard versus hardened endpoint telemetry on Windows and Linux systems. By emulating 35 MITRE ATT&CK techniques via the Caldera framework, the study measures the "Visibility Gap" between default logging and fine-tuned configurations (SwiftOnSecurity for Windows and Neo23x0 for Linux). Results indicate that while hardened configurations significantly increase detection surface they also introduce substantial data volume challenges.
 
 ## 2. Environment Architecture
@@ -22,9 +24,6 @@ The Linux environment utilized a local execution model to evaluate high-privileg
 *   **C2 Agent:** Sandcat executing with root privileges. 
 
 ---
-
-## 3. Configuration Analysis: Baseline vs. Hardened
-The study compared default system logging against industry-standard hardened rulesets to quantify detection improvements.
 
 ## 3. Configuration Analysis: Baseline vs. Hardened
 The study compared default system logging against industry-standard hardened rulesets to quantify detection improvements across 35 emulated techniques.
@@ -73,11 +72,29 @@ Post-execution, telemetry was exported for cross-referencing against the Caldera
 | **Windows** | 35 | 27 | 8 | **77.1%** |
 | **Linux** | 35 | 35 | 0 | **100.0%*** |
 
+*\*Note: 100% detection on Linux indicates that the activity was recorded in the telemetry; it does not imply an automated alert was triggered.*
 
-### 5.1 Observations
-*   **Windows (Sysmon):** Successfully identified **T1122 (COM Hijacking)** via Event ID 13, recording the specific registry key modification and the associated malicious DLL path. Process creation events (ID 1) provided full command-line transparency for PowerShell-based execution.
-*   **Linux (Auditd):** Successfully recorded **T1053.006 (Systemd Service Persistence)**. Telemetry included the `echo` command utilized for service creation and the `fchmodat` syscall for permission modification.
----
+### 5.1 Detailed Observations: Windows (Sysmon)
+The hardened Sysmon configuration provided high-fidelity traces for several critical attack phases:
+
+*   **Persistence (T1122 - COM Hijacking):** Successfully identified via **Event ID 13 (Registry Value Set)**. The telemetry recorded the modification of `HKCU\Software\Classes\CLSID\{...}\InProcServer32`, including the exact path to the malicious payload (`C:\IDontExist.dll`).
+*   **Execution (T1059.001 - PowerShell):** Captured via **Event ID 1 (Process Creation)**. Sysmon recorded the full command-line arguments, including `-ExecutionPolicy Bypass` and the parent process (`sandcat.exe`), allowing for clear process lineage reconstruction.
+*   **Persistence (T1053.005 - Scheduled Task):** Detected through **Event ID 1 (Process Creation)** of `schtasks.exe` and **Event ID 13** for the associated registry keys. The telemetry provided the task name and the execution trigger.
+*   **Command and Control (T1071.001 - Web Protocols):** Identified via **Event ID 3 (Network Connection)**. Sysmon captured the outbound connection to the C2 server on Port 8888, including the source and destination IP addresses.
+
+### 5.2 Detailed Observations: Linux (Auditd)
+The Neo23x0 ruleset transformed the Linux target into a forensic sensor, capturing granular syscall activity:
+
+*   **Persistence (T1053.006 - Systemd Service):** Captured the creation of `art-timer.service`. Telemetry included the `echo` command utilized for service creation and the `fchmodat` syscall used to modify file permissions.
+*   **Anti-Forensics (T1070.004 - File Deletion):** Recorded over 700 instances of the `unlinkat` syscall as the agent attempted to remove malicious artifacts. The logs provided the exact file paths being deleted.
+*   **Anti-Forensics (T1070.006 - Timestomping):** Triggered 99 alerts under the `key=T1070_006_timestomp`. Auditd captured the use of the `utimensat` syscall as the agent attempted to modify file timestamps to evade forensic analysis.
+*   **Discovery (T1087.001 - Local Account Discovery):** Captured the execution of `cat /etc/passwd` and `getent passwd`. While visible, these events highlighted the "Discovery Paradox," as they were functionally indistinguishable from standard administrative activity.
+
+### 5.3 Detection Gaps and Challenges
+Despite the high visibility provided by hardened configurations, several gaps were identified:
+*   **Discovery Noise (Both Platforms):** Techniques such as `whoami`, `hostname`, and `id` were recorded but proved difficult to distinguish from legitimate system noise. On Linux, these commands are executed thousands of times daily by system services, leading to a high false-positive potential.
+*   **Encrypted Payloads (T1071):** While network connections were logged (Event ID 3 / Socket creation), the content of the C2 communication remained opaque due to encryption. Detection relied on behavioral indicators (e.g., beaconing frequency) rather than payload analysis.
+*   **In-Memory Execution:** Techniques that avoided disk writes or registry modifications proved more difficult to detect with standard telemetry, highlighting the need for memory-resident monitoring tools.
 
 ## 6. Strategic Recommendations
 
