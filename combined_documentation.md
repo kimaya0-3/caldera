@@ -1,7 +1,5 @@
 # Technical Report: Cross-Platform Adversary Emulation and Telemetry Analysis
 
----
-
 ## 1. Synopsis
 
 This research evaluates the detection capabilities of standard versus hardened endpoint telemetry on Windows and Linux systems. By emulating 35 MITRE ATT&CK techniques via the Caldera framework, the study measures the "Visibility Gap" between default logging and fine-tuned configurations (SwiftOnSecurity for Windows and Neo23x0 for Linux). Results indicate that while hardened configurations significantly increase detection surface they also introduce substantial data volume challenges.
