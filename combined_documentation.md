@@ -88,18 +88,19 @@ The Neo23x0 ruleset transformed the Linux target into a forensic sensor, capturi
 *   **Anti-Forensics (T1070.006 - Timestomping):** Triggered 99 alerts under the `key=T1070_006_timestomp`. Auditd captured the use of the `utimensat` syscall as the agent attempted to modify file timestamps to evade forensic analysis.
 *   **Discovery (T1087.001 - Local Account Discovery):** Captured the execution of `cat /etc/passwd` and `getent passwd`. While visible, these events highlighted the "Discovery Paradox," as they were functionally indistinguishable from standard administrative activity.
 
-### 5.3 Detection Gaps and Challenges
+
+## 6. Discussion
+
+### 6.1 Detection Gaps and Challenges
 Despite the high visibility provided by hardened configurations, several gaps were identified:
 *   **Discovery Noise (Both Platforms):** Techniques such as `whoami`, `hostname`, and `id` were recorded but proved difficult to distinguish from legitimate system noise. On Linux, these commands are executed thousands of times daily by system services, leading to a high false-positive potential.
 *   **Encrypted Payloads (T1071):** While network connections were logged (Event ID 3 / Socket creation), the content of the C2 communication remained opaque due to encryption. Detection relied on behavioral indicators (e.g., beaconing frequency) rather than payload analysis.
 *   **In-Memory Execution:** Techniques that avoided disk writes or registry modifications proved more difficult to detect with standard telemetry, highlighting the need for memory-resident monitoring tools.
 
-## 6. Strategic Recommendations
-
-### 6.1 Behavioral Sequencing
+### 6.2 Behavioral Sequencing
 Detection logic should transition from atomic indicators (e.g., single command execution) to behavioral sequences. For example, an alert should trigger when a sequence such as `whoami` → `id` → `cat /etc/shadow` occurs within a narrow temporal window.
 
-### 6.2 Telemetry Optimization and Noise Suppression
+### 6.3 Telemetry Optimization and Noise Suppression
 *   **Service Baselines:** Identify high-volume system services (e.g., `systemd-resolved`, `dbus-daemon`) and implement suppression rules for known-good behavior to improve the signal-to-noise ratio.
 *   **Lineage Monitoring:** Implement strict monitoring for parent-child process anomalies. A service process such as `splunkd` spawning an interactive shell (`/bin/sh`) should be treated as a high-confidence indicator of compromise.
 
