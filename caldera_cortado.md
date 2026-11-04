@@ -1,4 +1,4 @@
-Comprehensive Documentation: Caldera Threat Emulation, Cortado RTAs, Native Telemetry Hardening, and Wazuh XDR/SIEM Integration
+# Comprehensive Documentation: Caldera Threat Emulation, Cortado RTAs, Native Telemetry Hardening, and Wazuh XDR/SIEM Integration
 
 
 This document integrates findings from two core evaluations of endpoint threat detection:
