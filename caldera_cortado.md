@@ -14,20 +14,17 @@ By combining fine-tuned native logging rulesets (**SwiftOnSecurity** for Windows
 ### 1.1 Introduction
 Modern enterprise cybersecurity faces an evolving landscape of sophisticated adversaries who routinely bypass perimeter defenses, leverage legitimate system administration tools (Living off the Land - LotL), and employ advanced evasion techniques. To counter these threats effectively, security operations centers (SOCs) and threat hunting teams require deep, high-fidelity endpoint telemetry. Traditional security monitoring often relies on commercial, proprietary Endpoint Detection and Response (EDR) agents. While powerful, these proprietary agents frequently introduce significant commercial licensing costs, heavy management overhead, resource constraints on legacy or embedded systems, and platform compatibility challenges.
 
-This comprehensive technical documentation explores an alternative paradigm: **Leveraging Native Operating System Telemetry** specifically **Sysmon** on Windows and **Auditd** on Linux augmented by community-driven, hardened rulesets (**SwiftOnSecurity** and **Neo23x0**) and centralized via open-source Extended Detection and Response (XDR) through **Wazuh**.
+This documentation explores an alternative paradigm: **Leveraging Native Operating System Telemetry** specifically **Sysmon** on Windows and **Auditd** on Linux augmented by community-driven, hardened rulesets (**SwiftOnSecurity** and **Neo23x0**).
 
 ### 1.2 Motivation & Core Research Goals
 The primary motivations driving this research and documentation are:
 1. **Evaluating Standalone Native Telemetry:** Determine whether default OS logging versus hardened native configurations can provide sufficient visibility into advanced threat techniques without relying on third-party commercial EDR agents.
 2. **Quantifying the "Visibility Gap":** Measure the detection and visibility delta across standard out-of-the-box configurations versus fine-tuned, community-hardened monitoring rulesets during automated adversary emulation.
 3. **Operationalizing Telemetry at Scale:** Address the inherent challenges of raw native logging such as massive data volumes, alert fatigue, and lack of standardized categorization by integrating fine-tuned logs into an open-source SIEM and XDR platform (**Wazuh**).
-4. **Reproducible Adversary Emulation & Simulation:** Establish a rigorous, automated testing framework utilizing [MITRE Caldera](https://github.com/mitre/caldera) for structured C2 adversary execution and [Elastic Cortado RTAs](https://github.com/elastic/cortado) for behavioral threat simulation.
 
 ---
 
 ## Part 1: Caldera Adversary Emulation & Native Telemetry Analysis
-
-*Summary: This section evaluates multi-platform endpoint telemetry using [MITRE Caldera](https://github.com/mitre/caldera) an automated Command and Control (C2) and adversary emulation platform to execute 35 standardized MITRE ATT&CK techniques across Windows and Linux targets.*
 
 ### 1. Summary
 This research evaluates the detection capabilities of standard versus hardened endpoint telemetry on Windows and Linux systems. By emulating 35 MITRE ATT&CK techniques via the Caldera framework, the study measures the "Visibility Gap" between default logging and fine-tuned configurations (SwiftOnSecurity for Windows and Neo23x0 for Linux). Results indicate that while hardened configurations significantly increase detection surface they also introduce substantial data volume challenges.
@@ -58,6 +55,8 @@ The study compared default system logging against industry-standard hardened rul
 | **Techniques Visible (of 35)** | 4 | 27 | 5 | 35 |
 | **Detection Effectiveness** | 11.4% | 77.1% | 14.2% | 100% (Visibility) |
 
+**Timeframe:** 30 minutes
+
 **Technical Finding:** Default configurations primarily focus on system health and basic execution. Hardened configurations are required to capture behavioral indicators that are otherwise omitted from standard logs.
 
 ### 4. Methodology
@@ -75,7 +74,7 @@ To ensure the attack profile was relevant to endpoint defense, a custom Python u
 - **Sampling:** 35 techniques were randomly sampled across the kill chain (Execution, Persistence, Discovery, and Exfiltration) to create a diverse adversary profile.
 
 #### 4.3 Phase 3: Adversary Profiling and C2 Integration
-Due to the complexity of the 35-step chain, a secondary script (`create_adversary.py`) was utilized to automate the creation of the "Tuesday_35_Attack_Run" profile within the Caldera backend.
+Due to the complexity of the 35-step chain, a secondary script (`create_adversary.py`) was utilized to automate the creation of the "35_Attack_Run" profile within the Caldera backend.
 - **Brute Force Execution:** The profile was configured with an "Atomic Ordering" model. This "Brute Force" approach ensured that the C2 server attempted every technique in the sequence, even if a preceding step failed or was blocked, ensuring a complete telemetry set for all 35 techniques.
 - **Agent Obfuscation:** On the Linux target, the Sandcat agent was executed with root privileges and renamed to `splunkd` to evaluate the efficacy of process lineage and anti-forensic detection.
 
@@ -127,10 +126,8 @@ ightarrow$ `cat /etc/shadow` occurs within a narrow temporal window.
 
 ## Part 2: Cortado RTAs & Wazuh Integration
 
-*Summary: This section evaluates behavioral threat simulation using [Elastic Cortado RTAs](https://github.com/elastic/cortado) an open-source suite of automated red team techniques to test defensive rules and integrate telemetry into [Wazuh XDR & SIEM](https://wazuh.com).*
-
-### 1. Motivation
-The primary goal of this project was to determine if robust threat detection is achievable without the exclusive reliance on third-party endpoint agents. While dedicated agents provide valuable visibility, they often introduce management overhead, resource constraints, and compatibility challenges. Our focus was on leveraging native Windows telemetry (Sysmon) and Linux telemetry (auditd) to identify malicious activity, aiming to provide powerful, integrated, and potentially more lightweight alternatives for security monitoring. The subsequent integration with Wazuh aimed to address the operationalization and advanced analytical needs identified during the native telemetry evaluations.
+### 1. Summary
+This section evaluates behavioral threat simulation using [Elastic Cortado RTAs](https://github.com/elastic/cortado) an open-source suite of automated red team techniques to test defensive rules and integrate telemetry into [Wazuh XDR & SIEM](https://wazuh.com). Our focus was on leveraging native Windows telemetry (Sysmon) and Linux telemetry (auditd) to identify malicious activity, aiming to provide powerful, integrated, and potentially more lightweight alternatives for security monitoring.
 
 ### 2. Methodology
 #### 2.1 Tool Selection: Cortado RTAs
