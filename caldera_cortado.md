@@ -109,7 +109,7 @@ The Neo23x0 ruleset transformed the Linux target into a forensic sensor, capturi
 ### 6. Discussion
 #### 6.1 Detection Gaps and Challenges
 Despite the high visibility provided by hardened configurations, several gaps were identified:
-- **Discovery Noise (Both Platforms):** Techniques such as `whoami`, `hostname`, and `id` were recorded but proved difficult to distinguish from legitimate system noise. On Linux, these commands are executed thousands of times daily by system services, leading to a high false-positive potential.
+- **Discovery Noise (Both Platforms):** Techniques such as `whoami` -> `id` -> `cat /etc/shadow` were recorded but proved difficult to distinguish from legitimate system noise. On Linux, these commands are executed thousands of times daily by system services, leading to a high false-positive potential.
 - **Encrypted Payloads (T1071):** While network connections were logged (Event ID 3 / Socket creation), the content of the C2 communication remained opaque due to encryption. Detection relied on behavioral indicators (e.g., beaconing frequency) rather than payload analysis.
 - **In-Memory Execution:** Techniques that avoided disk writes or registry modifications proved more difficult to detect with standard telemetry, highlighting the need for memory-resident monitoring tools.
 
