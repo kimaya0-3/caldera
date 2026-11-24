@@ -120,16 +120,16 @@ Detection logic should transition from atomic indicators (e.g., single command e
 - **Service Baselines:** Identify high-volume system services (e.g., `systemd-resolved`, `dbus-daemon`) and implement suppression rules for known-good behavior to improve the signal-to-noise ratio.
 - **Lineage Monitoring:** Implement strict monitoring for parent-child process anomalies. A service process such as `splunkd` spawning an interactive shell (`/bin/sh`) should be treated as a high-confidence indicator of compromise.
 
-### 6.4 Detection Difficulty: Easier vs. Harder Attack Types & Phases
+#### 6.4 Detection Difficulty: Easier vs. Harder Attack Types & Phases
 Based on the empirical emulation of 35 MITRE ATT&CK techniques across Windows and Linux, distinct patterns emerged regarding which attack phases and technique categories were straightforward to detect versus those that created significant blind spots:
-#### A. Easiest Attack Phases & Techniques to Detect (High Fidelity)
+##### A. Easiest Attack Phases & Techniques to Detect (High Fidelity)
 1. **Persistence via File Drops & Registry Modifications:** 
    - *Examples:* COM Hijacking (`T1122`), Scheduled Task creation (`T1053.005`), and dropping unauthorized binaries or DLLs into restricted system paths (`\spool\drivers\` or `\etc\cron.d\`).
    - *Why:* Hardened configurations (Sysmon Event ID 11/13 and Auditd watch rules) monitor critical system directories and registry hives explicitly. Any write or modification outside normal administrative baselines triggers immediate, high-fidelity alerts.
 2. **Process Execution with Non-Standard Lineage or Flags:**
    - *Examples:* PowerShell execution with `-ExecutionPolicy Bypass` (`T1059.001`) or binaries executed with renamed process names (e.g., Sandcat executing as `splunkd`).
    - *Why:* Process creation logging captures full command-line arguments and parent-child relationships. When a system process spawns an unexpected shell or runs with obfuscated names, the lineage anomaly stands out clearly.
-#### B. Hardest Attack Phases & Techniques to Detect (Low Visibility / High Noise)
+##### B. Hardest Attack Phases & Techniques to Detect (Low Visibility / High Noise)
 1. **Discovery & Local Reconnaissance:**
    - *Examples:* Running `whoami`, `hostname`, `id`, `cat /etc/passwd`, or `getent passwd` (`T1087.001`, `T1082`).
    - *Why:* These techniques suffer from the **"Discovery Paradox."* While easily captured in raw logs, legitimate administrative tasks, scripts, and monitoring agents run identical commands thousands of times daily, making them functionally indistinguishable from malicious reconnaissance without complex behavioral sequencing.
