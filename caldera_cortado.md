@@ -107,13 +107,13 @@ The Neo23x0 ruleset transformed the Linux target into a forensic sensor, capturi
 - **Discovery (T1087.001 - Local Account Discovery):** Captured the execution of `cat /etc/passwd` and `getent passwd`. While visible, these events highlighted the "Discovery Paradox," as they were functionally indistinguishable from standard administrative activity.
 
 ### 6. Discussion
-#### 6.1 Detection Gaps and Challenges
+### 6.1 Detection Gaps and Challenges
 Despite the high visibility provided by hardened configurations, several gaps were identified:
 - **Discovery Noise (Both Platforms):** Techniques such as `whoami`, `id`, `cat /etc/shadow` were recorded but proved difficult to distinguish from legitimate system noise. On Linux, these commands are executed thousands of times daily by system services, leading to a high false-positive potential.
 - **Encrypted Payloads (T1071):** While network connections were logged (Event ID 3 / Socket creation), the content of the C2 communication remained opaque due to encryption. Detection relied on behavioral indicators (e.g., beaconing frequency) rather than payload analysis.
 - **In-Memory Execution:** Techniques that avoided disk writes or registry modifications proved more difficult to detect with standard telemetry, highlighting the need for memory-resident monitoring tools.
 
-#### 6.2 Behavioral Sequencing
+### 6.2 Behavioral Sequencing
 Detection logic should transition from atomic indicators (e.g., single command execution) to behavioral sequences. For example, an alert should trigger when a sequence such as `whoami` -> `id` -> `cat /etc/shadow` occurs within a narrow temporal window.
 
 #### 6.3 Telemetry Optimization and Noise Suppression
@@ -132,7 +132,7 @@ Based on the empirical emulation of 35 MITRE ATT&CK techniques across Windows an
 ##### B. Hardest Attack Phases & Techniques to Detect (Low Visibility / High Noise)
 1. **Discovery & Local Reconnaissance:**
    - *Examples:* Running `whoami`, `hostname`, `id`, `cat /etc/passwd`, or `getent passwd` (`T1087.001`, `T1082`).
-   - *Why:* These techniques suffer from the **"Discovery Paradox."* While easily captured in raw logs, legitimate administrative tasks, scripts, and monitoring agents run identical commands thousands of times daily, making them functionally indistinguishable from malicious reconnaissance without complex behavioral sequencing.
+   - *Why:* These techniques suffer from the *"Discovery Paradox."* While easily captured in raw logs, legitimate administrative tasks, scripts, and monitoring agents run identical commands thousands of times daily, making them functionally indistinguishable from malicious reconnaissance without complex behavioral sequencing.
 2. **In-Memory Execution & Fileless Techniques:**
    - *Examples:* Executing payloads directly in memory, reflective DLL injection, or modifying internal OS kernel flags without touching disk.
    - *Why:* Standard file integrity monitoring (FIM) and disk-based audit rules miss these entirely because no new files are written to disk and no registry persistence keys are set. Detecting these requires advanced memory scanning and kernel callback telemetry (such as ETW on Windows or specialized memory-resident sensors).
